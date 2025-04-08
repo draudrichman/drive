@@ -20,6 +20,7 @@ interface NewHabitModalProps {
     isOpen: boolean;
     onClose: () => void;
     onCreate: (habit: {
+        id: number;
         name: string;
         category: string;
         icon: string;
@@ -28,23 +29,64 @@ interface NewHabitModalProps {
 }
 
 export function NewHabitModal({ isOpen, onClose, onCreate }: NewHabitModalProps) {
+    const [isLoading, setIsLoading] = useState(false);
     const [name, setName] = useState("");
-    const [category, setCategory] = useState(habitCategories[0]); // Default to first category
-    const [icon, setIcon] = useState(habitIcons[0].name); // Default to first icon
-    const [color, setColor] = useState(habitColors[0].value); // Default to first color
+    const [category, setCategory] = useState(habitCategories[0]);
+    const [icon, setIcon] = useState(habitIcons[0].name);
+    const [color, setColor] = useState(habitColors[0].value);
 
-    const handleCreate = () => {
-        if (!name) return;
-        onCreate({ name, category, icon, color });
+    const resetForm = () => {
         setName("");
         setCategory(habitCategories[0]);
         setIcon(habitIcons[0].name);
         setColor(habitColors[0].value);
-        onClose();
+    };
+
+    const handleCreate = async () => {
+        if (!name.trim()) return;
+        
+        setIsLoading(true);
+
+        try {
+            const response = await fetch('/api/habits', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    name,
+                    category,
+                    icon,
+                    color
+                }),
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to create habit');
+            }
+
+            const data = await response.json();
+            
+            // Call the onCreate prop with the new habit data
+            onCreate(data.habit);
+            
+            // Reset form and close modal
+            resetForm();
+            onClose();
+        } catch (error) {
+            console.error("Error creating habit:", error);
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     return (
-        <Dialog open={isOpen} onOpenChange={onClose}>
+        <Dialog open={isOpen} onOpenChange={(open) => {
+            if (!open) {
+                onClose();
+                resetForm();
+            }
+        }}>
             <DialogContent>
                 <DialogHeader>
                     <DialogTitle>Add new habit</DialogTitle>
@@ -112,8 +154,12 @@ export function NewHabitModal({ isOpen, onClose, onCreate }: NewHabitModalProps)
                             </SelectContent>
                         </Select>
                     </div>
-                    <Button className="w-full" onClick={handleCreate}>
-                        Add habit
+                    <Button 
+                        className="w-full" 
+                        onClick={handleCreate} 
+                        disabled={isLoading || !name.trim()}
+                    >
+                        {isLoading ? "Adding..." : "Add habit"}
                     </Button>
                 </div>
             </DialogContent>

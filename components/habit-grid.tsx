@@ -10,33 +10,76 @@ type HabitProps = {
     completions: { date: string; completed: boolean }[];
 };
 
-export function HabitGrid({ color, completions }: HabitProps) {
-    const { theme } = useTheme();
-    const [mounted, setMounted] = useState(false); // Track if component has mounted on client
+function getHabitGridData(
+    completions: { date: string; completed: boolean }[],
+    totalDays = 280
+) {
+    const rows = 7;
+    const today = new Date();
 
-    // Ensure theme is only used after mounting on the client
-    useEffect(() => {
-        setMounted(true);
-    }, [])
+    const getGridRowIndex = (date: Date) => (date.getDay() + 1) % 7;
 
 
-    const days = completions.slice(-240); // Take the last 280 days (7 rows × 40 columns)
-    const rows = 6;
-    const columns = 40;
-    // Reorder days to fill top-to-bottom, then next column
-    const grid = Array.from({ length: rows }, () => Array(columns).fill(null));
-    for (let i = 0; i < days.length; i++) {
-        const row = i % rows; // Fill top to bottom
-        const col = Math.floor(i / rows); // Move to next column after filling a column
-        grid[row][col] = days[i];
+    const dayOfWeek = today.getDay();
+
+    const daysUntilFriday = (5 - dayOfWeek + 7) % 7;
+
+    const endDate = new Date(today);
+    endDate.setDate(today.getDate() + daysUntilFriday);
+
+    const startDate = new Date(endDate);
+    startDate.setDate(endDate.getDate() - totalDays + 1);
+
+
+    const dateMap = new Map(
+        completions.map((c) => [new Date(c.date).toDateString(), c])
+    );
+
+
+    const grid: ({ date: string; completed: boolean; upcoming: boolean } | null)[][] = Array.from(
+        { length: rows },
+        () => []
+    );
+
+
+    const currentDate = new Date(startDate);
+    for (let i = 0; i < totalDays; i++) {
+        const dateKey = currentDate.toDateString();
+        const isUpcoming = currentDate > today;
+
+        const entry = isUpcoming
+            ? { date: currentDate.toISOString(), completed: false, upcoming: true }
+            : {
+                date: currentDate.toISOString(),
+                completed: dateMap.get(dateKey)?.completed ?? false,
+                upcoming: false
+            };
+
+        const row = getGridRowIndex(currentDate);
+        grid[row].push(entry);
+
+        currentDate.setDate(currentDate.getDate() + 1);
     }
 
-    // Adjust muted color based on theme
-    // Use a fallback color during SSR, update on client
+    return grid;
+}
+
+
+export function HabitGrid({ color, completions }: HabitProps) {
+    const { theme } = useTheme();
+    const [mounted, setMounted] = useState(false);
+
+    useEffect(() => {
+        setMounted(true);
+    }, []);
+
+    const grid = getHabitGridData(completions);
+    const rows = 7;
+    const columns = grid[0]?.length || 0;
+
     const mutedColor = mounted && theme === "dark"
-        ? adjustColor(color, -65) // Darken by 65% for dark mode
-        : adjustColor(color, 80)  // Lighten by 80% for light mode
- 
+        ? adjustColor(color, -65)
+        : adjustColor(color, 80);
 
     return (
         <div
@@ -46,27 +89,42 @@ export function HabitGrid({ color, completions }: HabitProps) {
                 gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
             }}
         >
-            {grid.flat().map((day, i) => {
-                if (!day) return <div key={i} className="aspect-square" />; // Empty cell
-                return (
-                    <TooltipProvider key={i}>
-                        <Tooltip>
-                            <TooltipTrigger asChild>
-                                <div
-                                    className={`aspect-square rounded-[4px] `}
-                                    style={{ width: "100%", height: "0px", paddingBottom: "100%", backgroundColor: day.completed ? color : mutedColor }}
-                                />
-                            </TooltipTrigger>
-                            <TooltipContent className="max-w-[200px] break-words">
-                                <p className="text-xs">
-                                    {new Date(day.date).toLocaleDateString()}:{" "}
-                                    {day.completed ? "Completed" : "Missed"}
-                                </p>
-                            </TooltipContent>
-                        </Tooltip>
-                    </TooltipProvider>
-                );
-            })}
+            {grid.map((row, rowIndex) =>
+                row.map((day, colIndex) => {
+                    const key = `${rowIndex}-${colIndex}`;
+                    if (!day) return <div key={key} className="aspect-square" />;
+                    return (
+                        <TooltipProvider key={key}>
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <div
+                                        className="aspect-square rounded-[4px]"
+                                        style={{
+                                            width: "100%",
+                                            height: "0px",
+                                            paddingBottom: "100%",
+                                            backgroundColor: day.completed ? color : mutedColor,
+                                        }}
+                                    />
+                                </TooltipTrigger>
+                                <TooltipContent className="max-w-[200px] break-words content-center">
+                                    <p className="text-xs">
+                                        {new Date(day.date).toLocaleDateString(undefined, {
+                                            weekday: "long",
+                                            year: "numeric",
+                                            month: "short",
+                                            day: "numeric",
+                                        })}
+                                    </p>
+                                    <div className="flex justify-center">
+                                        <p>{day.completed ? "Completed" : day.upcoming ? "Upcoming" : "Missed"}</p>
+                                    </div>
+                                </TooltipContent>
+                            </Tooltip>
+                        </TooltipProvider>
+                    );
+                })
+            )}
         </div>
     );
 }

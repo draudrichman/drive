@@ -3,207 +3,366 @@
 import { HabitGrid } from "@/components/habit-grid";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { useNewHabitModal } from "@/hooks/use-newhabit-modal";
 import { habitIcons } from "@/lib/constants";
-import clsx from "clsx";
 import { CheckCircle, Plus } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { NewHabitModal } from "./new-habit-modal";
-import { adjustColor } from "@/lib/utils";
+import { adjustColor, calculateStreak } from "@/lib/utils";
 import { useTheme } from "next-themes";
+import { Skeleton } from "./ui/skeleton";
+import {
+  MoreVertical,
+  Pencil,
+  Trash2,
+} from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 
-// Generate dummy completion data for 240 days (6 rows × 40 columns)
-const generateDummyCompletions = (completedDays: number) => {
-    const completions: { date: string; completed: boolean }[] = [];
-    const today = new Date();
-    for (let i = 239; i >= 0; i--) {
-        const date = new Date(today);
-        date.setDate(today.getDate() - i);
-        const completed = i < completedDays || (i % 3 === 0); // Simulate some pattern
-        completions.push({
-            date: date.toISOString().split("T")[0], // e.g., "2025-04-05"
-            completed,
-        });
-    }
-    return completions;
+type Habit = {
+  id: string;
+  name: string;
+  category: string;
+  icon: string;
+  color: string;
+  completions: { id: string; date: string; completed: boolean }[];
 };
 
-// Dummy data with color property (hex codes)
-const dummyHabits = [
-    {
-        id: "1",
-        name: "Exercise",
-        category: "Health & Fitness",
-        icon: "Dumbbell",
-        color: "#EF4444", // Red
-        mutedColorDark: adjustColor("#EF4444", -65),
-        mutedColorLight: adjustColor("#EF4444", 80),
-        completions: generateDummyCompletions(200),
-    },
-    {
-        id: "2",
-        name: "Meditation",
-        category: "Mental Wellbeing",
-        icon: "Brain",
-        color: "#3B82F6", // Blue
-        mutedColorDark: adjustColor("#3B82F6", -65),
-        mutedColorLight: adjustColor("#3B82F6", 80),
-        completions: generateDummyCompletions(150),
-    },
-    {
-        id: "3",
-        name: "Reading",
-        category: "Personal Development",
-        icon: "Book",
-        color: "#10B981", // Green
-        mutedColorDark: adjustColor("#10B981", -65),
-        mutedColorLight: adjustColor("#10B981", 80),
-        completions: generateDummyCompletions(100),
-    },
-];
+type HabitsSectionProps = {
+  habits: Habit[];
+  isLoading: boolean;
+};
 
 
+export function HabitsSection({ habits: initialHabits, isLoading }: HabitsSectionProps) {
+  const { theme } = useTheme();
+  const [habits, setHabits] = useState(initialHabits);
+  const today = new Date().toLocaleDateString("en-CA");
+  // console.log("Today's date:", today);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
-export function HabitsSection() {
-    const { theme } = useTheme();
-    const [habits, setHabits] = useState(dummyHabits);
-    const { isOpen, openModal, closeModal } = useNewHabitModal();
 
-    // Add a new habit (client-side only for now)
-    const handleAddHabit = (newHabit: {
-        name: string;
-        category: string;
-        icon: string;
-        color: string;
-    }) => {
-        setHabits([
-            ...habits,
-            {
-                id: String(habits.length + 1),
-                name: newHabit.name,
-                category: newHabit.category,
-                icon: newHabit.icon,
-                color: newHabit.color,
-                mutedColorDark: adjustColor(newHabit.color, -65),
-                mutedColorLight: adjustColor(newHabit.color, 80),
-                completions: generateDummyCompletions(0),
-            },
-        ]);
+  // const todays = new Date();
+  // console.log(`Current date and time: ${todays.toLocaleString()}`);
+  // Add this useEffect to sync habits with initialHabits
+  useEffect(() => {
+    setHabits(initialHabits);
+  }, [initialHabits]);
+
+  const handleHabitCreated = (newHabit: { id: number; name: string; category: string; icon: string; color: string }) => {
+    const habitWithId: Habit = {
+      id: newHabit.id.toString(), // Convert to string if Habit type expects string
+      name: newHabit.name,
+      category: newHabit.category,
+      icon: newHabit.icon,
+      color: newHabit.color,
+      completions: [],
     };
+    setHabits((prevHabits) => [...prevHabits, habitWithId]);
+    setIsModalOpen(false);
+  };
 
-    // Toggle today's completion (client-side only for now)
-    const toggleHabitCompletion = (habitId: string) => {
+  // const toggleHabitCompletion = async (habitId: string) => {
+  //     const habit = habits.find(h => h.id === habitId);
+  //     if (!habit) return;
 
+  //     const todayCompletion = habit.completions.find(c => c.date === today);
 
-        setHabits(
-            habits.map((habit) => {
-                if (habit.id !== habitId) return habit;
-                const today = new Date().toISOString().split("T")[0];
-                const todayIndex = habit.completions.findIndex((c) => c.date === today);
-                if (todayIndex === -1) {
-                    // Add today's entry if it doesn't exist
-                    return {
-                        ...habit,
-                        completions: [...habit.completions, { date: today, completed: true }],
-                    };
-                }
-                // Toggle existing entry
-                const newCompletions = [...habit.completions];
-                newCompletions[todayIndex] = {
-                    ...newCompletions[todayIndex],
-                    completed: !newCompletions[todayIndex].completed,
-                };
-                return { ...habit, completions: newCompletions };
-            })
-        );
-    };
+  //     if (todayCompletion) {
+  //         // Delete if already completed
+  //         await handleDeleteCompletion(todayCompletion.id, habitId);
+  //     } else {
+  //         // Create new completion
+  //         try {
+  //             const response = await fetch("/api/habits/completion", {
+  //                 method: "POST",
+  //                 headers: {
+  //                     "Content-Type": "application/json",
+  //                 },
+  //                 body: JSON.stringify({
+  //                     habitId: parseInt(habitId),
+  //                     date: today,
+  //                     completed: true,
+  //                 }),
+  //             });
 
-    return (
-        <div className="space-y-4">
-            <div className="flex items-center justify-end">
-                <Button onClick={openModal}>
-                    <Plus className="mr-2 h-4 w-4" />
-                    Add Habit
-                </Button>
-                <NewHabitModal
-                    isOpen={isOpen}
-                    onClose={closeModal}
-                    onCreate={handleAddHabit}
-                />
-            </div>
-            <div className="grid gap-4">
-                {habits.map((habit) => {
-                    const IconComponent = habitIcons.find(i => i.name === habit.icon)?.icon;
-                    return (
-                        <Card key={habit.id} className="p-4 sm:p-6">
-                            <div className="flex items-center justify-between mb-4">
-                                <div className="flex items-center space-x-4">
-                                    {IconComponent && (
-                                        <div
-                                            className="p-2 rounded-lg"
-                                            style={{ backgroundColor: habit.color }}
-                                        >
-                                            <IconComponent className="h-5 w-5 text-white" />
-                                        </div>
-                                    )}
-                                    <div>
-                                        <h3 className="text-lg font-semibold">{habit.name}</h3>
-                                        <p className="text-sm text-muted-foreground">{habit.category}</p>
-                                    </div>
-                                </div>
-                                <div className="flex items-center space-x-2">
-                                    <span className="text-sm text-muted-foreground">
-                                        {calculateStreak(habit.completions)} day streak
-                                    </span>
-                                    <Button
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={() => toggleHabitCompletion(habit.id)}
-                                        className="w-10 h-10"
-                                        style={{
-                                            backgroundColor: habit.completions[habit.completions.length - 1]?.completed
-                                                ? habit.color
-                                                : theme === "dark"
-                                                    ? habit.mutedColorDark
-                                                    : habit.mutedColorLight
-                                        }}
-                                    >
+  //             if (!response.ok) {
+  //                 throw new Error("Failed to create habit completion");
+  //             }
 
-                                        <CheckCircle
-                                            style={{
-                                                color:
-                                                    theme === "dark"
-                                                        ? "#FFFFFF" // white icon for both states in dark
-                                                        : habit.completions[habit.completions.length - 1]?.completed
-                                                            ? "#FFFFFF" // white when completed in light
-                                                            : "#000000", // black when incomplete in light
-                                            }}
-                                        />
-                                    </Button>
-                                </div>
-                            </div>
-                            <HabitGrid completions={habit.completions} color={habit.color} />
-                        </Card>
-                    )
-                })}
-            </div>
-        </div>
+  //             const data = await response.json();
+  //             const newCompletion = data.completion;
+
+  //             setHabits((prevHabits) =>
+  //                 prevHabits.map((habit) =>
+  //                     habit.id === habitId
+  //                         ? {
+  //                             ...habit,
+  //                             completions: [
+  //                                 ...habit.completions,
+  //                                 { id: newCompletion.id.toString(), date: newCompletion.date, completed: newCompletion.completed },
+  //                             ],
+  //                         }
+  //                         : habit
+  //                 )
+  //             );
+  //         } catch (error) {
+  //             console.error("Error creating habit completion:", error);
+  //         }
+  //     }
+  // };
+
+  const toggleHabitCompletion = async (habitId: string) => {
+    const habit = habits.find((h) => h.id === habitId);
+    if (!habit) return;
+
+    const todayCompletion = habit.completions.find((c) => c.date === today);
+    const isCurrentlyCompleted = !!todayCompletion;
+
+    // Optimistically update the local state
+    setHabits((prevHabits) =>
+      prevHabits.map((habit) =>
+        habit.id === habitId
+          ? {
+            ...habit,
+            completions: isCurrentlyCompleted
+              ? habit.completions.filter((c) => c.date !== today) // Remove today's completion
+              : [
+                ...habit.completions,
+                { id: `${Date.now()}`, date: today, completed: true }, // Add temporary completion
+              ],
+          }
+          : habit
+      )
     );
-}
 
-function calculateStreak(completions: { date: string; completed: boolean }[]) {
-    let streak = 0;
-    const today = new Date();
-    for (let i = 0; i < completions.length; i++) {
-        const date = new Date(completions[completions.length - 1 - i].date);
-        const diffDays = Math.floor(
-            (today.getTime() - date.getTime()) / (1000 * 60 * 60 * 24)
-        );
-        if (diffDays !== i || !completions[completions.length - 1 - i].completed) {
-            break;
+    // Sync with backend asynchronously
+    try {
+      if (isCurrentlyCompleted) {
+        // Delete the completion
+        await handleDeleteCompletion(todayCompletion!.id, habitId);
+      } else {
+        // Create new completion
+        const response = await fetch("/api/habits/completion", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            habitId: parseInt(habitId),
+            date: today,
+            completed: true,
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error("Failed to create habit completion");
         }
-        streak++;
+
+        const data = await response.json();
+        const newCompletion = data.completion;
+
+        // Update the temporary ID with the real one from the backend
+        setHabits((prevHabits) =>
+          prevHabits.map((habit) =>
+            habit.id === habitId
+              ? {
+                ...habit,
+                completions: habit.completions.map((c) =>
+                  c.date === today && c.id === `${Date.now()}`
+                    ? { ...c, id: newCompletion.id.toString() }
+                    : c
+                ),
+              }
+              : habit
+          )
+        );
+      }
+    } catch (error) {
+      console.error("Error syncing habit completion:", error);
+      // Optional: Revert on failure (uncomment if desired)
+      /*
+      setHabits((prevHabits) =>
+        prevHabits.map((habit) =>
+          habit.id === habitId
+            ? {
+                ...habit,
+                completions: isCurrentlyCompleted
+                  ? [...habit.completions, todayCompletion!] // Re-add if delete fails
+                  : habit.completions.filter((c) => c.date !== today), // Remove if create fails
+              }
+            : habit
+        )
+      );
+      */
     }
-    return streak;
+  };
+
+  const handleDeleteCompletion = async (completionId: string, habitId: string) => {
+    try {
+      const response = await fetch(`/api/habits/completion/${completionId}`, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to delete completion");
+      }
+
+      setHabits((prevHabits) =>
+        prevHabits.map((habit) =>
+          habit.id === habitId
+            ? {
+              ...habit,
+              completions: habit.completions.filter((c) => c.id !== completionId),
+            }
+            : habit
+        )
+      );
+    } catch (error) {
+      console.error("Error deleting completion:", error);
+    }
+  };
+
+  const handleEditHabit = (habitId: string) => {
+    // TODO: Implement edit logic (e.g., open a modal with habit data)
+    console.log(`Edit habit with ID: ${habitId}`);
+  };
+
+  const handleDeleteHabit = async (habitId: string) => {
+    try {
+      const response = await fetch(`/api/habits/${habitId}`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ habitId }),
+      });
+
+      if (!response.ok) throw new Error("Failed to delete habit");
+
+      setHabits((prevHabits) => prevHabits.filter((habit) => habit.id !== habitId));
+    } catch (error) {
+      console.error("Error deleting habit:", error);
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="space-y-4">
+        <div className="flex justify-between items-center">
+          <Skeleton className="h-8 w-48" />
+          <Skeleton className="h-10 w-32" />
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Skeleton className="h-36" />
+          <Skeleton className="h-36" />
+        </div>
+      </div>
+    );
+  }
+
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-end">
+        <Button variant={"default"} className="cursor-pointer" onClick={() => setIsModalOpen(true)}>
+          <Plus className="mr-2 h-4 w-4" />
+          Add Habit
+        </Button>
+
+      </div>
+      {habits.length === 0 ? (
+        <div className="bg-muted/50 rounded-lg p-6 text-center">
+          <h3 className="font-medium text-lg mb-2">No habits found</h3>
+          <p className="text-muted-foreground mb-4">
+            Create your first habit to start tracking your progress.
+          </p>
+        </div>
+      ) : (
+        <div className="grid gap-4">
+          {habits.map((habit) => {
+            const IconComponent = habitIcons.find(i => i.name === habit.icon)?.icon;
+            return (
+              <Card key={habit.id} className="p-4 sm:p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center space-x-2">
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button variant="ghost" size="sm" className="w-8 h-8 p-0">
+                          <MoreVertical className="h-4 w-4" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-40">
+                        <div className="space-y-2">
+                          <Button
+                            variant="ghost"
+                            className="w-full justify-start"
+                            onClick={() => handleEditHabit(habit.id)}
+                          >
+                            <Pencil className="mr-2 h-4 w-4" />
+                            Edit
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            className="w-full justify-start text-red-600"
+                            onClick={() => handleDeleteHabit(habit.id)}
+                          >
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            Delete
+                          </Button>
+                        </div>
+                      </PopoverContent>
+                    </Popover>
+                    <div className="flex items-center space-x-4">
+                      {IconComponent && (
+                        <div className="p-2 rounded-lg" style={{ backgroundColor: habit.color }}>
+                          <IconComponent className="h-5 w-5 text-white" />
+                        </div>
+                      )}
+                      <div>
+                        <h3 className="text-lg font-semibold">{habit.name}</h3>
+                        <p className="text-sm text-muted-foreground">{habit.category}</p>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <span className="text-sm text-muted-foreground">
+                      {calculateStreak(habit.completions)} day streak
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => toggleHabitCompletion(habit.id)} // Replace toggleHabitCompletion
+                      className="w-10 h-10 cursor-pointer"
+                      style={{
+                        backgroundColor: habit.completions.find(c => c.date === today)?.completed
+                          ? habit.color
+                          : theme === "dark"
+                            ? adjustColor(habit.color, -65)
+                            : adjustColor(habit.color, 80),
+                      }}
+                    >
+                      <CheckCircle
+                        style={{
+                          color: theme === "dark"
+                            ? "#FFFFFF"
+                            : habit.completions.find(c => c.date === today)?.completed
+                              ? "#FFFFFF"
+                              : "#000000",
+                        }}
+                      />
+                    </Button>
+                  </div>
+                </div>
+                <HabitGrid completions={habit.completions} color={habit.color} />
+              </Card>
+            )
+          })}
+        </div>
+      )}
+
+      <NewHabitModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onCreate={handleHabitCreated}
+      />
+    </div>
+  );
 }
