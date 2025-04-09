@@ -28,12 +28,14 @@ export function adjustColor(hex: string, percent: number): string {
     .padStart(2, "0")}${newB.toString(16).padStart(2, "0")}`;
 }
 
-export function calculateStreak(completions: { date: string; completed: boolean }[]) {
+export function calculateStreak(
+  completions: { date: string; completed: boolean }[]
+) {
   if (completions.length === 0) return 0;
 
   // Sort completions by date in descending order (most recent first)
-  const sortedCompletions = [...completions].sort((a, b) =>
-    new Date(b.date).getTime() - new Date(a.date).getTime()
+  const sortedCompletions = [...completions].sort(
+    (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
   );
 
   let streak = 0;
@@ -54,9 +56,23 @@ export function calculateStreak(completions: { date: string; completed: boolean 
   }
 
   // Check if today should count (if no completion for today yet)
-  if (streak === 0 && sortedCompletions[0]?.date < today && sortedCompletions[0]?.completed) {
+  if (
+    streak === 0 &&
+    sortedCompletions[0]?.date < today &&
+    sortedCompletions[0]?.completed
+  ) {
     streak = 1; // Start streak if yesterday was completed
   }
 
   return streak;
+}
+
+export function calculateDuration(start: string, end: string) {
+  const [startHours, startMinutes] = start.split(":").map(Number);
+  const [endHours, endMinutes] = end.split(":").map(Number);
+  const startTotal = startHours * 60 + startMinutes;
+  let endTotal = endHours * 60 + endMinutes;
+  if (endTotal <= startTotal) endTotal += 24 * 60; // Handle midnight crossover
+  const diffMinutes = endTotal - startTotal;
+  return diffMinutes / 60; // Convert to hours
 }

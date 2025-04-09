@@ -1,9 +1,11 @@
 import { db } from "../index";
 import {
-  habits,
   habitCompletions,
+  habits,
   InsertHabit,
   InsertHabitCompletion,
+  InsertSleepEntry,
+  sleepEntries
 } from "../schema";
 
 export async function createHabit(data: InsertHabit) {
@@ -17,4 +19,10 @@ export async function createHabitCompletion(data: InsertHabitCompletion) {
     .values(data)
     .returning();
   return newCompletion;
+}
+
+
+export async function createSleepEntry(data: InsertSleepEntry) {
+  const [newEntry] = await db.insert(sleepEntries).values(data).returning();
+  return newEntry;
 }

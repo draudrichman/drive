@@ -1,8 +1,6 @@
 import { deleteHabit } from "@/db/queries/delete";
 import { createClient } from "@/utils/supabase/server";
-import { NextRequest, NextResponse } from "next/server";
-
-// type Params = Promise<{ id: string }>
+import { NextResponse } from "next/server";
 
 export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
  

@@ -45,5 +45,16 @@ export const habitCompletionsRelations = relations(
   })
 );
 
+// Sleep entries table
+export const sleepEntries = pgTable("sleep_entries", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id", { length: 36 }).notNull(), // References Supabase Auth user ID (UUID)
+  startDate: timestamp("start_date").notNull(), // Full start date-time (e.g., "2025-04-06 22:00:00")
+  endDate: timestamp("end_date").notNull(), // Full end date-time (e.g., "2025-04-07 05:30:00")
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
 export type InsertHabit = typeof habits.$inferInsert;
 export type InsertHabitCompletion = typeof habitCompletions.$inferInsert;
+export type InsertSleepEntry = typeof sleepEntries.$inferInsert;
