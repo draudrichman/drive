@@ -1,7 +1,10 @@
+'use client';
+
 import { useState } from "react";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import SleepClock from "./sleep-clock";
+import { toast } from "sonner"; // Add this import at the top
 import { DateTimePicker } from "./ui/date-time-picker";
 
 export function SleepEntryCard({
@@ -9,15 +12,24 @@ export function SleepEntryCard({
 }: {
     onSave: (entry: { startDate: string; endDate: string; hours: number }) => void;
 }) {
-    const [startDateTime, setStartDateTime] = useState<Date | undefined>(new Date());
-    const [endDateTime, setEndDateTime] = useState<Date | undefined>(
-        new Date(new Date().setHours(6, 0, 0, 0)) // Default to 6:00 AM
-    );
+    const [startDateTime, setStartDateTime] = useState<Date | undefined>(() => {
+        const now = new Date();
+        now.setHours(22, 0, 0, 0); // Default to 10:00 PM local time
+        return now;
+    });
+    const [endDateTime, setEndDateTime] = useState<Date | undefined>(() => {
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        tomorrow.setHours(6, 0, 0, 0); // Default to 6:00 AM local time the next day
+        return tomorrow;
+    });
 
-    // Extract time strings for SleepClock
+    // Extract time strings for SleepClock (local time)
     const formatTime = (date: Date | undefined): string => {
         if (!date) return "00:00";
-        return `${date.getHours().toString().padStart(2, "0")}:${date.getMinutes().toString().padStart(2, "0")}`;
+        const hours = date.getHours();
+        const minutes = date.getMinutes();
+        return `${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}`;
     };
 
     const startTime = formatTime(startDateTime);
@@ -27,19 +39,34 @@ export function SleepEntryCard({
     const calculateDuration = () => {
         if (!startDateTime || !endDateTime) return 0;
         const start = new Date(startDateTime);
-        const end = new Date(endDateTime);
-        if (end < start) end.setDate(end.getDate() + 1);
+        let end = new Date(endDateTime);
+
+        // If end is before start, assume end is on the next day
+        if (end < start) {
+            end = new Date(end);
+            end.setDate(end.getDate() + 1);
+        }
+
         const diff = end.getTime() - start.getTime();
-        return diff / (1000 * 60 * 60); // Convert to hours
+        const hours = diff / (1000 * 60 * 60); // Convert to hours
+        return hours;
     };
 
     const duration = calculateDuration();
 
     const handleSave = () => {
         if (!startDateTime || !endDateTime) return; // Ensure a date is selected
+
+        // Check if endDateTime is before startDateTime
+        if (endDateTime.getTime() < startDateTime.getTime()) {
+            console.log(startDateTime, endDateTime);
+            toast.warning("End time cannot be before start time. Please adjust the times.");
+            return;
+        }
+
         onSave({
-            startDate: startDateTime.toISOString(),
-            endDate: endDateTime.toISOString(),
+            startDate: startDateTime.toISOString(), // Save as UTC
+            endDate: endDateTime.toISOString(),     // Save as UTC
             hours: duration,
         });
     };
@@ -55,7 +82,7 @@ export function SleepEntryCard({
                             if (!startDateTime) return;
                             const [hours, minutes] = time.split(":").map(Number);
                             const newDate = new Date(startDateTime);
-                            newDate.setHours(hours, minutes);
+                            newDate.setHours(hours, minutes, 0, 0);
                             setStartDateTime(newDate);
                         }}
                         endTime={endTime}
@@ -63,14 +90,14 @@ export function SleepEntryCard({
                             if (!endDateTime) return;
                             const [hours, minutes] = time.split(":").map(Number);
                             const newDate = new Date(endDateTime);
-                            newDate.setHours(hours, minutes);
+                            newDate.setHours(hours, minutes, 0, 0);
                             setEndDateTime(newDate);
                         }}
                         sleepHours={duration}
                         onSave={handleSave}
                     />
                     <div className="text-center text-sm text-gray-500 mt-2">
-                        Sleep time: {Math.floor(duration)} hours
+                        Sleep time: {duration.toFixed(1)} hours
                     </div>
                 </div>
 
@@ -82,9 +109,11 @@ export function SleepEntryCard({
                             value={startDateTime}
                             onChange={(date) => {
                                 setStartDateTime(date);
-                                // If endDateTime is before the new startDateTime, reset it
+                                // If endDateTime is before the new startDateTime, adjust it
                                 if (date && endDateTime && endDateTime < date) {
-                                    setEndDateTime(new Date(date.getTime() + 60 * 60 * 1000)); // Set to 1 hour after start
+                                    const newEndDate = new Date(date);
+                                    newEndDate.setHours(newEndDate.getHours() + 8); // Default to 8 hours later
+                                    setEndDateTime(newEndDate);
                                 }
                             }}
                         />
@@ -93,7 +122,9 @@ export function SleepEntryCard({
                         <Label>To</Label>
                         <DateTimePicker
                             value={endDateTime}
-                            onChange={setEndDateTime}
+                            onChange={(date) => {
+                                setEndDateTime(date);
+                            }}
                             minDate={startDateTime} // Pass startDateTime as minDate
                         />
                     </div>

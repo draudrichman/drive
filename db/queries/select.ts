@@ -24,6 +24,7 @@ export async function getUserHabits(userId: string) {
           category: habit.category,
           icon: habit.icon,
           color: habit.color,
+          description: habit.description,
           completions: completion
             ? [
                 {
@@ -49,6 +50,7 @@ export async function getUserHabits(userId: string) {
       category: string;
       icon: string;
       color: string;
+      description?: string | null;
       completions: Array<{
         id: string;
         date: string;

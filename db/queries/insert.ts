@@ -5,7 +5,7 @@ import {
   InsertHabit,
   InsertHabitCompletion,
   InsertSleepEntry,
-  sleepEntries
+  sleepEntries,
 } from "../schema";
 
 export async function createHabit(data: InsertHabit) {
@@ -14,13 +14,9 @@ export async function createHabit(data: InsertHabit) {
 }
 
 export async function createHabitCompletion(data: InsertHabitCompletion) {
-  const [newCompletion] = await db
-    .insert(habitCompletions)
-    .values(data)
-    .returning();
+  const [newCompletion] = await db.insert(habitCompletions).values(data).returning();
   return newCompletion;
 }
-
 
 export async function createSleepEntry(data: InsertSleepEntry) {
   const [newEntry] = await db.insert(sleepEntries).values(data).returning();

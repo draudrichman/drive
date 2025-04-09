@@ -29,40 +29,63 @@ export function adjustColor(hex: string, percent: number): string {
 }
 
 export function calculateStreak(
-  completions: { date: string; completed: boolean }[]
-) {
-  if (completions.length === 0) return 0;
+  completions: { id: string; date: string; completed: boolean }[]
+): number {
+  if (!completions || completions.length === 0) return 0;
 
-  // Sort completions by date in descending order (most recent first)
-  const sortedCompletions = [...completions].sort(
-    (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+  // Get today's date in "en-CA" format (YYYY-MM-DD)
+  const today = new Date();
+  const todayStr = today.toLocaleDateString("en-CA");
+
+  // Check if today is completed
+  const todayCompleted = completions.some(
+    (c) => c.date === todayStr && c.completed
   );
 
-  let streak = 0;
-  const today = new Date().toLocaleDateString("en-CA"); // Local date (e.g., "2025-04-08")
+  // If today is completed, streak starts at 1; otherwise, start checking from yesterday
+  let streak = todayCompleted ? 1 : 0;
+  const currentDate = new Date(today);
 
-  // Start from the most recent completion and work backwards
-  for (let i = 0; i < sortedCompletions.length; i++) {
-    const currentDate = sortedCompletions[i].date; // Already in "YYYY-MM-DD" format
-    const expectedDate = new Date(today); // Copy of today
-    expectedDate.setDate(expectedDate.getDate() - i); // Subtract i days
-    const expectedDateStr = expectedDate.toLocaleDateString("en-CA");
+  // If today isn't completed, we start checking from yesterday
+  if (!todayCompleted) {
+    currentDate.setDate(currentDate.getDate() - 1);
+    const yesterdayStr = currentDate.toLocaleDateString("en-CA");
+    const yesterdayCompleted = completions.some(
+      (c) => c.date === yesterdayStr && c.completed
+    );
 
-    // If the date doesn’t match or isn’t completed, break the streak
-    if (currentDate !== expectedDateStr || !sortedCompletions[i].completed) {
-      break;
+    // If yesterday isn't completed, streak must be 0 (resets due to break in streak)
+    if (!yesterdayCompleted) {
+      console.log(
+        `Streak reset to 0: Yesterday (${yesterdayStr}) not completed. Completions: ${JSON.stringify(
+          completions.map((c) => ({ date: c.date, completed: c.completed }))
+        )}`
+      );
+      return 0;
+    }
+    streak = 1; // Yesterday was completed, so streak starts at 1
+  }
+
+  // Go backward day by day to count consecutive completed days
+  while (true) {
+    currentDate.setDate(currentDate.getDate() - 1); // Move to the previous day
+    const currentDateStr = currentDate.toLocaleDateString("en-CA");
+
+    const dayCompleted = completions.some(
+      (c) => c.date === currentDateStr && c.completed
+    );
+    if (!dayCompleted) {
+      break; // Streak ends when we find a non-completed day
     }
     streak++;
   }
 
-  // Check if today should count (if no completion for today yet)
-  if (
-    streak === 0 &&
-    sortedCompletions[0]?.date < today &&
-    sortedCompletions[0]?.completed
-  ) {
-    streak = 1; // Start streak if yesterday was completed
-  }
+  // Log the streak for debugging
+  console.log(
+    `Streak for completions ${JSON.stringify(
+      completions.map((c) => ({ date: c.date, completed: c.completed }))
+    )}: ${streak}`
+  );
 
   return streak;
 }
@@ -76,3 +99,37 @@ export function calculateDuration(start: string, end: string) {
   const diffMinutes = endTotal - startTotal;
   return diffMinutes / 60; // Convert to hours
 }
+
+// Keep this function for converting UTC to local time
+export const parseUTCTimestampToLocal = (utcTimestamp: string): Date => {
+  const date = new Date(utcTimestamp); // Parse the UTC timestamp
+  return new Date(date.getTime() - date.getTimezoneOffset() * 60 * 1000); // Adjust for local timezone
+};
+
+export const formatTimeWithDate = (
+  dateStr: string
+): { time: string; date: string } => {
+  const date = new Date(dateStr);
+
+  // Extract UTC hours and minutes directly
+  const utcHours = date.getUTCHours();
+  const utcMinutes = date.getUTCMinutes();
+
+  // Convert 24-hour to 12-hour format
+  const ampm = utcHours >= 12 ? "PM" : "AM";
+  const displayHours = utcHours % 12 || 12; // Convert to 12-hour format
+
+  const formattedTime = `${displayHours
+    .toString()
+    .padStart(2, "0")}:${utcMinutes.toString().padStart(2, "0")} ${ampm}`;
+
+  // Get UTC date parts
+  const month = date.toLocaleString("en-US", {
+    month: "short",
+    timeZone: "UTC",
+  });
+  const day = date.getUTCDate();
+  const formattedDate = `${month} ${day}`;
+
+  return { time: formattedTime, date: formattedDate };
+};

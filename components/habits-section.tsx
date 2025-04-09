@@ -16,6 +16,8 @@ import {
   Trash2,
 } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { EditHabitModal } from "./edit-habit-modal";
+import { toast } from "sonner";
 
 
 type Habit = {
@@ -24,6 +26,7 @@ type Habit = {
   category: string;
   icon: string;
   color: string;
+  description?: string;
   completions: { id: string; date: string; completed: boolean }[];
 };
 
@@ -37,8 +40,11 @@ export function HabitsSection({ habits: initialHabits, isLoading }: HabitsSectio
   const { theme } = useTheme();
   const [habits, setHabits] = useState(initialHabits);
   const today = new Date().toLocaleDateString("en-CA");
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [habitToEdit, setHabitToEdit] = useState<Habit | null>(null);
   // console.log("Today's date:", today);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [loadingHabits, setLoadingHabits] = useState<{ [key: string]: boolean }>({});
 
 
   // const todays = new Date();
@@ -48,13 +54,14 @@ export function HabitsSection({ habits: initialHabits, isLoading }: HabitsSectio
     setHabits(initialHabits);
   }, [initialHabits]);
 
-  const handleHabitCreated = (newHabit: { id: number; name: string; category: string; icon: string; color: string }) => {
+  const handleHabitCreated = (newHabit: { id: number; name: string; category: string; icon: string; color: string; description?: string }) => {
     const habitWithId: Habit = {
-      id: newHabit.id.toString(), // Convert to string if Habit type expects string
+      id: newHabit.id.toString(),
       name: newHabit.name,
       category: newHabit.category,
       icon: newHabit.icon,
       color: newHabit.color,
+      description: newHabit.description,
       completions: [],
     };
     setHabits((prevHabits) => [...prevHabits, habitWithId]);
@@ -112,11 +119,14 @@ export function HabitsSection({ habits: initialHabits, isLoading }: HabitsSectio
   // };
 
   const toggleHabitCompletion = async (habitId: string) => {
+    if (loadingHabits[habitId]) return;
+
     const habit = habits.find((h) => h.id === habitId);
     if (!habit) return;
 
     const todayCompletion = habit.completions.find((c) => c.date === today);
     const isCurrentlyCompleted = !!todayCompletion;
+
 
     // Optimistically update the local state
     setHabits((prevHabits) =>
@@ -135,6 +145,8 @@ export function HabitsSection({ habits: initialHabits, isLoading }: HabitsSectio
       )
     );
 
+    // Set loading state for this habit
+    setLoadingHabits((prev) => ({ ...prev, [habitId]: true }));
     // Sync with backend asynchronously
     try {
       if (isCurrentlyCompleted) {
@@ -176,24 +188,26 @@ export function HabitsSection({ habits: initialHabits, isLoading }: HabitsSectio
               : habit
           )
         );
+        toast.success("Habit completed!");
       }
     } catch (error) {
       console.error("Error syncing habit completion:", error);
       // Optional: Revert on failure (uncomment if desired)
-      /*
       setHabits((prevHabits) =>
         prevHabits.map((habit) =>
           habit.id === habitId
             ? {
-                ...habit,
-                completions: isCurrentlyCompleted
-                  ? [...habit.completions, todayCompletion!] // Re-add if delete fails
-                  : habit.completions.filter((c) => c.date !== today), // Remove if create fails
-              }
+              ...habit,
+              completions: isCurrentlyCompleted
+                ? [...habit.completions, todayCompletion!] // Re-add if delete fails
+                : habit.completions.filter((c) => c.date !== today), // Remove if create fails
+            }
             : habit
         )
       );
-      */
+    } finally {
+      // Clear loading state for this habit
+      setLoadingHabits((prev) => ({ ...prev, [habitId]: false }));
     }
   };
 
@@ -223,11 +237,46 @@ export function HabitsSection({ habits: initialHabits, isLoading }: HabitsSectio
   };
 
   const handleEditHabit = (habitId: string) => {
-    // TODO: Implement edit logic (e.g., open a modal with habit data)
-    console.log(`Edit habit with ID: ${habitId}`);
+    const habit = habits.find((h) => h.id === habitId);
+    if (habit) {
+      setHabitToEdit(habit);
+      setIsEditModalOpen(true);
+    }
+  };
+
+  const handleHabitUpdated = (updatedHabit: {
+    id: number;
+    name: string;
+    category: string;
+    icon: string;
+    color: string;
+    description?: string;
+  }) => {
+    const updatedHabitWithId: Habit = {
+      id: updatedHabit.id.toString(),
+      name: updatedHabit.name,
+      category: updatedHabit.category,
+      icon: updatedHabit.icon,
+      color: updatedHabit.color,
+      description: updatedHabit.description,
+      completions: habits.find((h) => h.id === updatedHabit.id.toString())?.completions || [], // Preserve existing completions
+    };
+
+    setHabits((prevHabits) =>
+      prevHabits.map((habit) =>
+        habit.id === updatedHabit.id.toString() ? updatedHabitWithId : habit
+      )
+    );
+    setIsEditModalOpen(false);
+    setHabitToEdit(null);
   };
 
   const handleDeleteHabit = async (habitId: string) => {
+    if (loadingHabits[habitId]) return; // Prevent action if already loading
+
+    // Set loading state for this habit
+    setLoadingHabits((prev) => ({ ...prev, [habitId]: true }));
+
     try {
       const response = await fetch(`/api/habits/${habitId}`, {
         method: "DELETE",
@@ -240,6 +289,9 @@ export function HabitsSection({ habits: initialHabits, isLoading }: HabitsSectio
       setHabits((prevHabits) => prevHabits.filter((habit) => habit.id !== habitId));
     } catch (error) {
       console.error("Error deleting habit:", error);
+    } finally {
+      // Clear loading state for this habit
+      setLoadingHabits((prev) => ({ ...prev, [habitId]: false }));
     }
   };
 
@@ -301,8 +353,9 @@ export function HabitsSection({ habits: initialHabits, isLoading }: HabitsSectio
                           </Button>
                           <Button
                             variant="ghost"
-                            className="w-full justify-start text-red-600"
+                            className="w-full justify-start text-pink-600"
                             onClick={() => handleDeleteHabit(habit.id)}
+                            disabled={loadingHabits[habit.id]}
                           >
                             <Trash2 className="mr-2 h-4 w-4" />
                             Delete
@@ -338,6 +391,7 @@ export function HabitsSection({ habits: initialHabits, isLoading }: HabitsSectio
                             ? adjustColor(habit.color, -65)
                             : adjustColor(habit.color, 80),
                       }}
+                      disabled={loadingHabits[habit.id]}
                     >
                       <CheckCircle
                         style={{
@@ -362,6 +416,15 @@ export function HabitsSection({ habits: initialHabits, isLoading }: HabitsSectio
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         onCreate={handleHabitCreated}
+      />
+      <EditHabitModal
+        isOpen={isEditModalOpen}
+        onClose={() => {
+          setIsEditModalOpen(false);
+          setHabitToEdit(null);
+        }}
+        onUpdate={(habit) => handleHabitUpdated({ ...habit, description: habit.description || undefined })}
+        habit={habitToEdit}
       />
     </div>
   );

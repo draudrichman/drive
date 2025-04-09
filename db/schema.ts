@@ -16,6 +16,7 @@ export const habits = pgTable("habits", {
   category: varchar("category", { length: 100 }).notNull(),
   icon: varchar("icon", { length: 50 }).notNull(),
   color: varchar("color", { length: 7 }).notNull(), // Hex color code
+  description: varchar("description", { length: 1000 }),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
