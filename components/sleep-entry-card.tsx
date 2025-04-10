@@ -59,7 +59,7 @@ export function SleepEntryCard({
 
         // Check if endDateTime is before startDateTime
         if (endDateTime.getTime() < startDateTime.getTime()) {
-            console.log(startDateTime, endDateTime);
+            // console.log(startDateTime, endDateTime);
             toast.warning("End time cannot be before start time. Please adjust the times.");
             return;
         }

@@ -56,11 +56,11 @@ export function calculateStreak(
 
     // If yesterday isn't completed, streak must be 0 (resets due to break in streak)
     if (!yesterdayCompleted) {
-      console.log(
-        `Streak reset to 0: Yesterday (${yesterdayStr}) not completed. Completions: ${JSON.stringify(
-          completions.map((c) => ({ date: c.date, completed: c.completed }))
-        )}`
-      );
+      // console.log(
+      //   `Streak reset to 0: Yesterday (${yesterdayStr}) not completed. Completions: ${JSON.stringify(
+      //     completions.map((c) => ({ date: c.date, completed: c.completed }))
+      //   )}`
+      // );
       return 0;
     }
     streak = 1; // Yesterday was completed, so streak starts at 1
@@ -81,11 +81,11 @@ export function calculateStreak(
   }
 
   // Log the streak for debugging
-  console.log(
-    `Streak for completions ${JSON.stringify(
-      completions.map((c) => ({ date: c.date, completed: c.completed }))
-    )}: ${streak}`
-  );
+  // console.log(
+  //   `Streak for completions ${JSON.stringify(
+  //     completions.map((c) => ({ date: c.date, completed: c.completed }))
+  //   )}: ${streak}`
+  // );
 
   return streak;
 }
@@ -133,3 +133,167 @@ export const formatTimeWithDate = (
 
   return { time: formattedTime, date: formattedDate };
 };
+
+///////////////////////////////////////////////////
+
+type SleepDataFromPage = {
+  id: number;
+  day?: string;
+  startDate: string;
+  endDate: string;
+  hours: number;
+};
+
+interface SleepGraphProps {
+  sleepData: SleepDataFromPage[];
+}
+
+interface Interval {
+  start: number;
+  end: number;
+}
+
+interface DateIntervals {
+  date: string;
+  intervals: Interval[];
+}
+
+/**
+ * Transforms sleep data into date-specific intervals
+ * @param sleepData Single sleep data entry
+ * @returns Array of date intervals
+ */
+function transformSleepData(sleepData: SleepDataFromPage): DateIntervals[] {
+  // Parse the dates
+  const startDate = new Date(sleepData.startDate);
+  const endDate = new Date(sleepData.endDate);
+
+  // Format date to YYYY-MM-DD
+  const formatDate = (date: Date): string => {
+    return date.toISOString().split("T")[0];
+  };
+
+  // Convert hours and minutes to decimal representation
+  const toDecimalHours = (date: Date): number => {
+    return date.getUTCHours() + date.getUTCMinutes() / 60;
+  };
+
+  // Get start and end times in decimal hours
+  const startTime = toDecimalHours(startDate);
+  const endTime = toDecimalHours(endDate);
+
+  // Get dates as strings
+  const startDateStr = formatDate(startDate);
+  const endDateStr = formatDate(endDate);
+
+  // Create result object
+  const result: DateIntervals[] = [];
+
+  // Handle case where start and end dates are the same
+  if (startDateStr === endDateStr) {
+    result.push({
+      date: startDateStr,
+      intervals: [{ start: startTime, end: endTime }],
+    });
+    return result;
+  }
+
+  // Handle case where dates span multiple days
+  // First day: from start time to midnight
+  result.push({
+    date: startDateStr,
+    intervals: [{ start: startTime, end: 24 }],
+  });
+
+  // Last day: from midnight to end time
+  result.push({
+    date: endDateStr,
+    intervals: [{ start: 0, end: endTime }],
+  });
+
+  // Handle any intermediate days (full 24-hour periods)
+  const currentDate = new Date(startDate);
+  currentDate.setUTCDate(currentDate.getUTCDate() + 1);
+
+  while (formatDate(currentDate) !== endDateStr) {
+    result.push({
+      date: formatDate(currentDate),
+      intervals: [{ start: 0, end: 24 }],
+    });
+    currentDate.setUTCDate(currentDate.getUTCDate() + 1);
+  }
+
+  // Sort by date
+  result.sort((a, b) => a.date.localeCompare(b.date));
+
+  return result;
+}
+
+/**
+ * Processes all sleep data for the graph
+ * @param props SleepGraphProps containing array of sleep data
+ * @returns Processed data for graph display
+ */
+export function processSleepDataForGraph(
+  props: SleepGraphProps
+): DateIntervals[] {
+  const { sleepData } = props;
+
+  // Process each sleep data entry and flatten the results
+  const allDateIntervals: DateIntervals[] = [];
+
+  for (const entry of sleepData) {
+    const intervals = transformSleepData(entry);
+    allDateIntervals.push(...intervals);
+  }
+
+  // Combine intervals for the same date
+  const dateMap = new Map<string, Interval[]>();
+
+  for (const dateInterval of allDateIntervals) {
+    if (!dateMap.has(dateInterval.date)) {
+      dateMap.set(dateInterval.date, []);
+    }
+
+    dateMap.get(dateInterval.date)!.push(...dateInterval.intervals);
+  }
+
+  // Create final result
+  const result: DateIntervals[] = [];
+
+  dateMap.forEach((intervals, date) => {
+    // Sort intervals by start time
+    intervals.sort((a, b) => a.start - b.start);
+
+    // Merge overlapping intervals
+    const mergedIntervals: Interval[] = [];
+    let currentInterval: Interval | null = null;
+
+    for (const interval of intervals) {
+      if (!currentInterval) {
+        currentInterval = { ...interval };
+      } else if (currentInterval.end >= interval.start) {
+        // Intervals overlap, merge them
+        currentInterval.end = Math.max(currentInterval.end, interval.end);
+      } else {
+        // No overlap, add current interval and start a new one
+        mergedIntervals.push(currentInterval);
+        currentInterval = { ...interval };
+      }
+    }
+
+    if (currentInterval) {
+      mergedIntervals.push(currentInterval);
+    }
+
+    result.push({
+      date,
+      intervals: mergedIntervals,
+    });
+  });
+
+  // Sort by date
+  result.sort((a, b) => a.date.localeCompare(b.date));
+
+  return result;
+}

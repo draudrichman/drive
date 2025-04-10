@@ -86,7 +86,7 @@ const SleepClock: React.FC<SleepClockProps> = ({ startTime, endTime, sleepHours 
             // Draw the sleep arc (thick blue line)
             ctx.beginPath();
             ctx.arc(centerX, centerY, radius + 15, startAngle, endAngle);
-            ctx.strokeStyle = "#4ECDC4";
+            ctx.strokeStyle = "oklch(0.645 0.246 16.439)";
             ctx.lineWidth = 15;
             ctx.lineCap = "round";
             ctx.stroke();

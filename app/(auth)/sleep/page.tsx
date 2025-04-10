@@ -1,6 +1,7 @@
 'use client';
 
 import { SleepEntryCard } from "@/components/sleep-entry-card";
+import { SleepGraph } from "@/components/sleep-graph";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatTimeWithDate, parseUTCTimestampToLocal } from "@/lib/utils";
@@ -40,7 +41,7 @@ const Sleep = () => {
                     const localStartDate = parseUTCTimestampToLocal(entry.startDate);
                     const localEndDate = parseUTCTimestampToLocal(entry.endDate);
                     const hours = (localEndDate.getTime() - localStartDate.getTime()) / (1000 * 60 * 60);
-                    console.log(`Entry ${entry.id}: Start ${localStartDate.toLocaleString()} - End ${localEndDate.toLocaleString()}, Hours: ${hours}`);
+                    // console.log(`Entry ${entry.id}: Start ${localStartDate.toLocaleString()} - End ${localEndDate.toLocaleString()}, Hours: ${hours}`);
                     return {
                         id: parseInt(entry.id),
                         day: localStartDate.toLocaleDateString("en-US", { weekday: "long" }),
@@ -174,16 +175,15 @@ const Sleep = () => {
                     <TabsTrigger value="add">Add Entry</TabsTrigger>
                     <TabsTrigger value="history">History</TabsTrigger>
                     <TabsTrigger value="data">Data-testing</TabsTrigger>
+                    <TabsTrigger value="graph">Graph</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="add" className="space-y-4 flex-1 overflow-hidden">
                     <div className="flex flex-col md:flex-row gap-4">
                         {/* Graph Card: 70% width */}
-                        <Card className="w-full md:w-[65%]">
-                            <CardContent className="pt-6">
-                                {/* <SleepGraph data={sleepData} /> */}
-                            </CardContent>
-                        </Card>
+                        <div className="w-full md:w-[65%]">
+                            <SleepGraph sleepData={sleepData} />
+                        </div>
                         {/* Clock Card: 30% width */}
                         <Card className="w-full md:w-[35%] flex justify-center">
                             <CardContent className="pt-6 flex justify-center">
@@ -207,7 +207,7 @@ const Sleep = () => {
                                 <p className="text-center text-muted-foreground">No sleep entries found.</p>
                             ) : (
                                 sleepData.map((entry) => {
-                                    console.log(entry.startDate, entry.endDate);
+                                    // console.log(entry.startDate, entry.endDate);
                                     const start = formatTimeWithDate(entry.startDate);
                                     const end = formatTimeWithDate(entry.endDate);
                                     return (
@@ -225,6 +225,10 @@ const Sleep = () => {
                             )}
                         </div>
                     </Card>
+                </TabsContent>
+
+                <TabsContent value="graph" className="space-y-4">
+                    {/* <SleepGraph /> */}
                 </TabsContent>
             </Tabs>
         </div>

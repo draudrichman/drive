@@ -76,6 +76,7 @@ import {
   Pen,
   Phone,
   Piano,
+  Bed,
   Plane,
 } from "lucide-react";
 
@@ -88,6 +89,7 @@ export const habitIcons = [
   { icon: Baby, name: "Baby" },
   { icon: BadgeDollarSign, name: "BadgeDollarSign" },
   { icon: BadgePoundSterling, name: "BadgePoundSterling" },
+  { icon: Bed, name: "Bed" },
   { icon: BicepsFlexed, name: "BicepsFlexed" },
   { icon: Bike, name: "Bike" },
   { icon: Book, name: "Book" },
