@@ -335,11 +335,15 @@ export function SleepGraph(sleepData: SleepGraphProps) {
                                             const data = props.payload as ChartData;
                                             if (!data.hasData) return ["No data", ""];
 
-                                            // Return an array of [value, label] pairs for each piece of information
                                             return (
                                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
                                                     <span>{`${data.totalSleep.toFixed(1)} hours slept`}</span>
-                                                    <span>{data.startTime} to {data.endTime}</span>
+                                                    {data.intervals.map((interval, index) => (
+                                                        <span key={index}>
+                                                            {formatHourToTime(interval.start)} to {formatHourToTime(interval.end)}
+                                                            {index < data.intervals.length - 1 && ','}
+                                                        </span>
+                                                    ))}
                                                 </div>
                                             );
                                         }}
