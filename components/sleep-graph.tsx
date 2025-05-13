@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from "react";
-import { addDays, format, startOfDay, eachDayOfInterval } from "date-fns";
+import { addDays, format, startOfDay, eachDayOfInterval, startOfMonth, endOfMonth, subMonths } from "date-fns";
 import { CalendarIcon } from "lucide-react";
 import { BarChart, CartesianGrid, XAxis, YAxis, Bar, Cell } from "recharts";
 import {
@@ -175,9 +175,10 @@ export function SleepGraph(sleepData: SleepGraphProps) {
     }, [sleepData]);
 
     // Set default date range to last 7 days
+
     const [dateRange, setDateRange] = React.useState<DateRange>({
-        from: startOfDay(addDays(new Date(), -7)),
-        to: startOfDay(new Date()),
+        from: startOfMonth(subMonths(new Date(), 1)), // First day of previous month
+        to: endOfMonth(new Date()), // Last day of current month
     });
 
     // Generate all dates in the selected range
@@ -295,11 +296,25 @@ export function SleepGraph(sleepData: SleepGraphProps) {
                             <YAxis
                                 domain={[0, 24]}
                                 ticks={[0, 3, 6, 9, 12, 15, 18, 21, 24]}
+                                // tickFormatter={(value: number): string => {
+                                //     const hour = value % 24;
+                                //     const ampm = hour >= 12 ? "PM" : "AM";
+                                //     const displayHour = hour % 12 === 0 ? 12 : hour % 12;
+                                //     return hour === 0 || hour === 12 ? `${displayHour} ${ampm}` : `${displayHour}`;
+                                // }}
                                 tickFormatter={(value: number): string => {
-                                    const hour = value % 24;
-                                    const ampm = hour >= 12 ? "PM" : "AM";
-                                    const displayHour = hour % 12 === 0 ? 12 : hour % 12;
-                                    return hour === 0 || hour === 12 ? `${displayHour} ${ampm}` : `${displayHour}`;
+                                    switch (value) {
+                                        case 24: return "12 AM";
+                                        case 21: return "3";
+                                        case 18: return "6";
+                                        case 15: return "9";
+                                        case 12: return "12 PM";
+                                        case 9: return "3";
+                                        case 6: return "6";
+                                        case 3: return "9";
+                                        case 0: return "12 AM";
+                                        default: return "";
+                                    }
                                 }}
                                 style={{ fontSize: "12px", fill: "hsl(var(--muted-foreground))" }}
                             />
