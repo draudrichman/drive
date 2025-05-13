@@ -291,7 +291,7 @@ export function SleepGraph(sleepData: SleepGraphProps) {
                                 axisLine={false}
                                 tickMargin={10}
                                 tickFormatter={(value) => new Date(value).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
-                                style={{ fontSize: "12px", fill: "hsl(var(--muted-foreground))" }}
+                                style={{ fontSize: "12px", fill: "" }}
                             />
                             <YAxis
                                 domain={[0, 24]}
@@ -316,7 +316,7 @@ export function SleepGraph(sleepData: SleepGraphProps) {
                                         default: return "";
                                     }
                                 }}
-                                style={{ fontSize: "12px", fill: "hsl(var(--muted-foreground))" }}
+                                style={{ fontSize: "12px", fill: "" }}
                             />
                             <ChartTooltip
                                 content={
@@ -335,16 +335,13 @@ export function SleepGraph(sleepData: SleepGraphProps) {
                                             const data = props.payload as ChartData;
                                             if (!data.hasData) return ["No data", ""];
 
-                                            if (name === "totalSleep") {
-                                                return [`${data.totalSleep.toFixed(1)} hours`, ""];
-                                            }
-                                            if (name === "startTime") {
-                                                return [data.startTime, ""];
-                                            }
-                                            if (name === "endTime") {
-                                                return [data.endTime, ""];
-                                            }
-                                            return [value, ""];
+                                            // Return an array of [value, label] pairs for each piece of information
+                                            return (
+                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                                                    <span>{`${data.totalSleep.toFixed(1)} hours slept`}</span>
+                                                    <span>{data.startTime} to {data.endTime}</span>
+                                                </div>
+                                            );
                                         }}
                                     />
                                 }
