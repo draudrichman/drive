@@ -1,7 +1,10 @@
 "use client";
 
 import { HabitsSection } from "@/components/habits-section";
+import PushupCounter from "@/components/pushup-counter";
 import { Card } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import WaterTracker from "@/components/water-intake";
 import { useEffect, useState } from "react";
 
 export default function HabitsPage() {
@@ -41,18 +44,18 @@ export default function HabitsPage() {
 
         {/* 1/4 for Placeholder Cards */}
         <div className="lg:col-span-1 space-y-4">
-          <Card className="p-4 sm:p-6">
-            <h3 className="text-lg font-semibold mb-4">Placeholder Card 1</h3>
-            <p className="text-sm text-muted-foreground">
-              Add your content here later.
-            </p>
-          </Card>
-          <Card className="p-4 sm:p-6">
-            <h3 className="text-lg font-semibold mb-4">Placeholder Card 2</h3>
-            <p className="text-sm text-muted-foreground">
-              Add your content here later.
-            </p>
-          </Card>
+          {/* <Tabs defaultValue="water" className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="water">Water</TabsTrigger>
+              <TabsTrigger value="pushups">Pushups</TabsTrigger>
+            </TabsList>
+            <TabsContent value="water"> */}
+          <PushupCounter />
+          <WaterTracker />
+          {/* </TabsContent> */}
+          {/* <TabsContent value="pushups"> */}
+          {/* </TabsContent>
+          </Tabs> */}
         </div>
       </div>
     </div>
